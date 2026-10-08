@@ -58,7 +58,7 @@ class NeuralModel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    runs: Mapped[List["ExperimentModelRun"]] = relationship(back_populates="model")
+    runs: Mapped[List["ExperimentModelRun"]] = relationship(back_populates="model", cascade="all, delete-orphan")
 
 class BenchmarkExperiment(Base):
     __tablename__ = "benchmark_experiments"

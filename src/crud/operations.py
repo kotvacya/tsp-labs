@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from src import models
 
 async def create_user(db: AsyncSession, email: str, password: str, name: str, role: str) -> models.User:
@@ -55,3 +56,27 @@ async def create_experiment(db: AsyncSession, user_id: int, dataset_id: int, tit
     await db.commit()
     await db.refresh(exp)
     return exp
+
+async def get_experiment_with_models(db: AsyncSession, experiment_id: int) -> models.BenchmarkExperiment | None:
+    stmt = (
+        select(models.BenchmarkExperiment)
+        .options(
+            selectinload(models.BenchmarkExperiment.model_runs)
+            .selectinload(models.ExperimentModelRun.model)
+        )
+        .where(models.BenchmarkExperiment.id == experiment_id)
+    )
+    res = await db.execute(stmt)
+    return res.scalar_one_or_none()
+
+async def get_model_with_experiments(db: AsyncSession, model_id: int) -> models.NeuralModel | None:
+    stmt = (
+        select(models.NeuralModel)
+        .options(
+            selectinload(models.NeuralModel.runs)
+            .selectinload(models.ExperimentModelRun.experiment)
+        )
+        .where(models.NeuralModel.id == model_id)
+    )
+    res = await db.execute(stmt)
+    return res.scalar_one_or_none()

@@ -11,7 +11,7 @@ docker compose up -d
 
 2. Запустить демо-сценарий (создание таблиц, наполнение, CRUD, проверка M:N):
 ```bash
-python scripts/demo.py
+python -m scripts.demo
 ```
 
 3. Запустить тесты:

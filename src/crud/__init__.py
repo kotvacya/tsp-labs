@@ -7,6 +7,8 @@ from src.crud.operations import (
     delete_model,
     create_dataset,
     create_experiment,
+    get_experiment_with_models,
+    get_model_with_experiments,
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "delete_model",
     "create_dataset",
     "create_experiment",
+    "get_experiment_with_models",
+    "get_model_with_experiments",
 ]

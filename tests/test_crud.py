@@ -33,3 +33,14 @@ async def test_experiment_many_to_many(db_session):
 
     exp = await crud.create_experiment(db_session, user.id, dataset.id, "Exp 1", [m1.id, m2.id])
     assert exp.id is not None
+
+    exp_with_models = await crud.get_experiment_with_models(db_session, exp.id)
+    assert exp_with_models is not None
+    assert len(exp_with_models.model_runs) == 2
+    model_names = {run.model.name for run in exp_with_models.model_runs}
+    assert model_names == {"M1", "M2"}
+
+    m1_with_exps = await crud.get_model_with_experiments(db_session, m1.id)
+    assert m1_with_exps is not None
+    assert len(m1_with_exps.runs) == 1
+    assert m1_with_exps.runs[0].experiment.title == "Exp 1"
