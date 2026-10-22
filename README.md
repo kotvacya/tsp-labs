@@ -64,24 +64,36 @@
 
 ## Запуск приложения
 
-1. Поднять базу данных PostgreSQL:
+### Вариант 1. В Docker через Docker Compose (Рекомендуемый, Nginx + API + PostgreSQL)
+
+Поднимает весь стек одной командой (база данных, автоприменение миграций Alembic, бэкенд FastAPI и обратный прокси Nginx с раздачей статики и gzip):
+
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-2. Применить миграции схемы БД:
+Доступные адреса:
+- **Веб-интерфейс / лендинг (Nginx):** [http://localhost/](http://localhost/)
+- **Swagger UI (через прокси):** [http://localhost/docs](http://localhost/docs)
+- **ReDoc:** [http://localhost/redoc](http://localhost/redoc)
+- **REST API:** `http://localhost/api/v1/...`
+
+### Вариант 2. Локальный запуск для разработки
+
+1. Поднять только базу данных:
+```bash
+docker compose up -d db
+```
+
+2. Применить миграции:
 ```bash
 alembic upgrade head
 ```
 
 3. Запустить API-сервер:
 ```bash
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-4. Документация Swagger UI доступна по адресу:
-- **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
