@@ -3,22 +3,44 @@ name = "labs"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.32.0",
     "bcrypt>=5.0.0",
+    "einops>=0.8.2",
     "email-validator>=2.3.0",
     "fastapi>=0.159.1",
     "greenlet>=3.5.6",
+    "grpcio>=1.62.0",
+    "grpcio-tools>=1.62.0",
     "httpx>=0.28.1",
+    "matplotlib>=3.11.2",
+    "numpy>=1.26.0",
+    "opencv-python-headless>=5.0.0.93",
+    "pillow>=10.0.0",
     "pydantic-settings>=2.16.1",
     "pyjwt>=2.15.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "python-multipart>=0.0.33",
+    "scipy>=1.17.1",
     "sqlalchemy>=2.1.4",
+    "timm>=1.0.31",
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
     "uvicorn[standard]>=0.54.0",
+    "wandb>=0.31.0",
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

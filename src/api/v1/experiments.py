@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status
 from src.api.deps import get_benchmark_service, get_current_user
+from src.core.grpc_client import get_grpc_client
 from src.models import User
 from src.schemas.experiment import (
     ExperimentCreateRequest,
@@ -10,6 +11,13 @@ from src.schemas.experiment import (
 from src.services.experiment_service import BenchmarkExperimentService
 
 router = APIRouter(prefix="/experiments", tags=["Benchmark Experiments"])
+
+
+@router.get("/compute/status", tags=["gRPC Compute Engine"])
+async def get_compute_status() -> dict[str, str]:
+    """Проверка доступности и статуса удалённого gRPC сервиса вычислений."""
+    client = get_grpc_client()
+    return await client.health_check()
 
 
 @router.get("", response_model=list[ExperimentListItemResponse])
@@ -56,4 +64,16 @@ async def create_experiment(
     benchmark_service: BenchmarkExperimentService = Depends(get_benchmark_service),
 ) -> ExperimentDetailResponse:
     exp = await benchmark_service.create_experiment(user_id=current_user.id, req=req)
+    return ExperimentDetailResponse.model_validate(exp)
+
+
+@router.post("/{experiment_id}/run", response_model=ExperimentDetailResponse)
+async def run_experiment(
+    experiment_id: int,
+    max_samples: int = Query(default=20, ge=1, le=1000, description="Max samples to evaluate"),
+    current_user: User = Depends(get_current_user),
+    benchmark_service: BenchmarkExperimentService = Depends(get_benchmark_service),
+) -> ExperimentDetailResponse:
+    """Запуск вычисления бенчмарка моделей на датасете через gRPC Compute Service."""
+    exp = await benchmark_service.run_experiment(experiment_id=experiment_id, max_samples=max_samples)
     return ExperimentDetailResponse.model_validate(exp)

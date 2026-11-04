@@ -9,3 +9,14 @@ wheels/
 # Virtual environments
 .venv/
 .env
+
+# Large datasets and model checkpoints
+data/
+checkpoints/
+*.pth
+*.pt
+*.mat
+*.safetensors
+*.bin
+demo_predicted_depth.png
+

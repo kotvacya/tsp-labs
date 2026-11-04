@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,11 +10,25 @@ from src.api.v1.experiments import router as experiments_router
 from src.api.v1.models import router as models_router
 from src.config import settings
 from src.core.exceptions import AppException
+from src.core.seed import seed_initial_data
+from src.database import AsyncSessionLocal
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        async with AsyncSessionLocal() as session:
+            await seed_initial_data(session)
+    except Exception as e:
+        print(f"Warning: database seed skipped or failed: {e}")
+    yield
+
 
 app = FastAPI(
     title=settings.APP_TITLE,
     version=settings.APP_VERSION,
-    description="REST API for Deep Learning Neural Depth Benchmark System (Lab 2)",
+    description="REST API for Deep Learning Neural Depth Benchmark System (Lab 2 & 3)",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

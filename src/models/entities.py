@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import ForeignKey, String, Text, Float, Integer, Boolean, DateTime
+from sqlalchemy import ForeignKey, String, Text, Float, Integer, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import Base
 
@@ -94,6 +94,9 @@ class ExperimentModelRun(Base):
 
 class MetricRecord(Base):
     __tablename__ = "metric_records"
+    __table_args__ = (
+        UniqueConstraint("run_id", "sample_id", name="uq_run_sample"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("experiment_model_runs.id", ondelete="CASCADE"))
