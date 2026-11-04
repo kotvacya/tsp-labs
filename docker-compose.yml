@@ -10,6 +10,35 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tspy_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/tspy_db
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/tspy_test_db
+      SECRET_KEY: ${SECRET_KEY:-insecure-docker-secret-key-change-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/static:/usr/share/nginx/html:ro
+    depends_on:
+      - api
 
 volumes:
   pgdata:
