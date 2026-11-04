@@ -16,6 +16,22 @@ services:
       timeout: 3s
       retries: 5
 
+  grpc-compute:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "src/grpc_service/server.py"]
+    environment:
+      GRPC_HOST: "0.0.0.0"
+      GRPC_PORT: 50051
+    volumes:
+      - ./data:/app/data:ro
+      - ./checkpoints:/app/checkpoints:ro
+    expose:
+      - "50051"
+    ports:
+      - "50051:50051"
+
   api:
     build:
       context: .
@@ -24,9 +40,16 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/tspy_db
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/tspy_test_db
       SECRET_KEY: ${SECRET_KEY:-insecure-docker-secret-key-change-in-production}
+      GRPC_COMPUTE_HOST: grpc-compute
+      GRPC_COMPUTE_PORT: 50051
+    volumes:
+      - ./data:/app/data:ro
+      - ./checkpoints:/app/checkpoints:ro
     depends_on:
       db:
         condition: service_healthy
+      grpc-compute:
+        condition: service_started
     expose:
       - "8000"
 
@@ -37,6 +60,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/static:/usr/share/nginx/html:ro
+      - ./data:/var/www/datasets:ro
     depends_on:
       - api
 

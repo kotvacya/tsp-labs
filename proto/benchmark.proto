@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package benchmark;
+
+// Сервис удалённого запуска и вычисления бенчмарков моделей глубины
+service BenchmarkComputeService {
+  // Выполнение бенчмарка моделей на датасете
+  rpc ExecuteBenchmark (BenchmarkRequest) returns (BenchmarkResponse);
+
+  // Одиночный инференс произвольного изображения
+  rpc PredictSingleImage (SingleImagePredictRequest) returns (SingleImagePredictResponse);
+
+  // Проверка статуса и доступного аппаратного ускорителя (CUDA, ROCm, CPU)
+  rpc HealthCheck (HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string device = 2; // "rocm", "cuda", "cpu"
+  string version = 3;
+}
+
+// Конфигурация модели для тестирования
+message ModelExecutionConfig {
+  int32 model_id = 1;
+  string model_name = 2;
+  string architecture = 3;
+  string backbone = 4;
+  string weights_rel_path = 5;
+}
+
+// Запрос на инференс одиночного произвольного изображения
+message SingleImagePredictRequest {
+  ModelExecutionConfig model = 1;
+  bytes image_data = 2;       // Бинарные данные RGB изображения (JPEG, PNG, WEBP)
+  bool colorize = 3;          // Преобразовывать ли глубину в цветовую карту (magma, turbo и т.д.)
+  string colormap = 4;        // Название colormap ("magma", "turbo", "inferno", "plasma", "viridis", "gray")
+}
+
+// Ответ одиночного инференса с картой глубины
+message SingleImagePredictResponse {
+  bool success = 1;
+  string error_message = 2;
+  bytes depth_png_data = 3;   // PNG байты карты глубины (визуализированной или 16-бит)
+  int32 width = 4;
+  int32 height = 5;
+  double min_depth = 6;
+  double max_depth = 7;
+  double inference_time_ms = 8;
+}
+
+// Информация о сэмпле датасета
+message SamplePayload {
+  int32 sample_index = 1;
+  string rgb_rel_path = 2;
+  string gt_depth_rel_path = 3;
+}
+
+// Запрос на запуск бенчмаркинга
+message BenchmarkRequest {
+  int32 experiment_id = 1;
+  int32 dataset_id = 2;
+  string dataset_name = 3;
+  string dataset_storage_dir = 4;
+  repeated ModelExecutionConfig models = 5;
+  repeated SamplePayload samples = 6;
+  int32 max_samples = 7; // Ограничение выборки (например, 10-50 для быстрых тестов, 0 = все)
+  string device = 8;     // "rocm", "cuda", "cpu", или пусто для авто
+}
+
+// Результаты расчёта метрик для отдельного кадра
+message SampleMetricResult {
+  int32 sample_index = 1;
+  double rmse = 2;
+  double silog = 3;
+  double abs_rel = 4;
+  double delta_1 = 5;
+  double inference_time_ms = 6;
+}
+
+// Сводные результаты прогона конкретной модели
+message ModelExecutionResult {
+  int32 model_id = 1;
+  string model_name = 2;
+  string run_status = 3; // "COMPLETED" или "FAILED"
+  string error_message = 4;
+  double mean_rmse = 5;
+  double mean_silog = 6;
+  double mean_absrel = 7;
+  double mean_delta_1 = 8;
+  double avg_inference_time_ms = 9;
+  repeated SampleMetricResult sample_metrics = 10;
+}
+
+// Итоговый ответ сервиса вычислений
+message BenchmarkResponse {
+  int32 experiment_id = 1;
+  string status = 2; // "FINISHED", "FAILED", "PARTIAL"
+  double total_duration_seconds = 3;
+  repeated ModelExecutionResult results = 4;
+}

@@ -75,5 +75,6 @@ CREATE TABLE IF NOT EXISTS metric_records (
     abs_rel FLOAT NOT NULL,
     rmse FLOAT NOT NULL,
     delta_1 FLOAT NOT NULL,
-    inference_time_ms FLOAT NOT NULL
+    inference_time_ms FLOAT NOT NULL,
+    CONSTRAINT uq_run_sample UNIQUE (run_id, sample_id)
 );

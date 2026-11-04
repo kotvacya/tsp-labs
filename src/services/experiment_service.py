@@ -1,7 +1,10 @@
-from typing import Sequence
+from datetime import datetime, timezone
+from typing import Sequence, Optional
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import BadRequestException, NotFoundException
-from src.models import BenchmarkExperiment
+from src.core.grpc_client import GrpcComputeClient, get_grpc_client
+from src.models import BenchmarkExperiment, MetricRecord
 from src.repositories.dataset_repo import DatasetRepository
 from src.repositories.experiment_repo import BenchmarkExperimentRepository
 from src.repositories.model_repo import NeuralModelRepository
@@ -94,3 +97,113 @@ class BenchmarkExperimentService:
             )
             for idx, run in enumerate(sorted_runs)
         ]
+
+    async def run_experiment(
+        self,
+        experiment_id: int,
+        max_samples: int = 20,
+        grpc_client: Optional[GrpcComputeClient] = None,
+    ) -> BenchmarkExperiment:
+        client = grpc_client or get_grpc_client()
+        exp = await self.get_experiment(experiment_id)
+        if not exp:
+            raise NotFoundException(f"Benchmark experiment with id={experiment_id} not found")
+
+        if exp.status == "RUNNING":
+            raise BadRequestException(f"Эксперимент #{experiment_id} уже выполняется в данный момент")
+
+        dataset = await self.dataset_repo.get_with_samples(exp.dataset_id)
+        if not dataset:
+            raise NotFoundException(f"Dataset with id={exp.dataset_id} not found")
+
+        # Очистка старых покадровых метрик перед повторным запуском
+        run_ids = [r.id for r in exp.model_runs]
+        if run_ids:
+            await self.db.execute(delete(MetricRecord).where(MetricRecord.run_id.in_(run_ids)))
+
+        # Сброс агрегированных метрик для запускаемых прогонов
+        for r in exp.model_runs:
+            r.run_status = "RUNNING"
+            r.mean_rmse = None
+            r.mean_silog = None
+            r.mean_absrel = None
+            r.mean_delta_1 = None
+            r.avg_inference_time_ms = None
+
+        exp.status = "RUNNING"
+        exp.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        exp.finished_at = None
+        await self.db.flush()
+
+        models_payload = [
+            {
+                "id": run.model.id,
+                "name": run.model.name,
+                "architecture": run.model.architecture,
+                "backbone": run.model.backbone,
+                "weights_rel_path": run.model.weights_rel_path,
+            }
+            for run in exp.model_runs
+            if run.model
+        ]
+
+        samples_payload = [
+            {
+                "sample_index": s.sample_index,
+                "rgb_image_rel_path": s.rgb_image_rel_path,
+                "gt_depth_rel_path": s.gt_depth_rel_path,
+            }
+            for s in dataset.samples
+        ]
+
+        try:
+            response = await client.execute_benchmark(
+                experiment_id=exp.id,
+                dataset_id=dataset.id,
+                dataset_name=dataset.name,
+                dataset_storage_dir=dataset.storage_dir,
+                models=models_payload,
+                samples=samples_payload,
+                max_samples=max_samples,
+            )
+        except Exception as e:
+            exp.status = "FAILED"
+            exp.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            for r in exp.model_runs:
+                if r.run_status == "RUNNING":
+                    r.run_status = "FAILED"
+            await self.db.commit()
+            raise e
+
+        sample_id_by_index = {s.sample_index: s.id for s in dataset.samples}
+
+        for model_res in response.results:
+            run = next((r for r in exp.model_runs if r.model_id == model_res.model_id), None)
+            if run:
+                run.run_status = model_res.run_status
+                run.mean_rmse = model_res.mean_rmse
+                run.mean_silog = model_res.mean_silog
+                run.mean_absrel = model_res.mean_absrel
+                run.mean_delta_1 = model_res.mean_delta_1
+                run.avg_inference_time_ms = model_res.avg_inference_time_ms
+
+                for sm in model_res.sample_metrics:
+                    sample_db_id = sample_id_by_index.get(sm.sample_index)
+                    if sample_db_id:
+                        record = MetricRecord(
+                            run_id=run.id,
+                            sample_id=sample_db_id,
+                            silog=sm.silog,
+                            abs_rel=sm.abs_rel,
+                            rmse=sm.rmse,
+                            delta_1=sm.delta_1,
+                            inference_time_ms=sm.inference_time_ms,
+                        )
+                        self.db.add(record)
+
+        all_failed = all(r.run_status == "FAILED" for r in exp.model_runs) if exp.model_runs else False
+        exp.status = "FAILED" if all_failed else "FINISHED"
+        exp.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await self.db.commit()
+
+        return await self.get_experiment(experiment_id)

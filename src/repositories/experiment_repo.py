@@ -32,9 +32,10 @@ class BenchmarkExperimentRepository(BaseRepository[BenchmarkExperiment]):
         stmt = (
             select(BenchmarkExperiment)
             .options(
+                selectinload(BenchmarkExperiment.dataset),
                 selectinload(BenchmarkExperiment.model_runs).selectinload(
                     ExperimentModelRun.model
-                )
+                ),
             )
             .where(BenchmarkExperiment.id == experiment_id)
         )

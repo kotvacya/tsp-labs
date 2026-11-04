@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
+    # gRPC Compute Service (Lab 3)
+    GRPC_COMPUTE_HOST: str = "localhost"
+    GRPC_COMPUTE_PORT: int = 50051
+
     APP_TITLE: str = "MDE-Bench Platform REST API"
     APP_VERSION: str = "0.2.0"
 
