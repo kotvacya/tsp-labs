@@ -3,6 +3,7 @@ set -euo pipefail
 
 BASE_URL="${1:-http://localhost}"
 API_URL="$BASE_URL/api/v1"
+MAX_SAMPLES="${MAX_SAMPLES:-3}"
 
 print_json() {
     if command -v jq >/dev/null 2>&1; then
@@ -55,8 +56,8 @@ echo "$EXP_RES" | print_json
 EXP_ID=$(echo "$EXP_RES" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 
 echo -e "\n--- 7. Запуск вычислений бенчмарка через gRPC (POST /experiments/$EXP_ID/run) ---"
-echo "FastAPI отправляет RPC-запрос в Compute Service..."
-RUN_RES=$(curl -s -X POST "$API_URL/experiments/$EXP_ID/run?max_samples=10" \
+echo "FastAPI отправляет RPC-запрос в Compute Service (samples: $MAX_SAMPLES)..."
+RUN_RES=$(curl -s -X POST "$API_URL/experiments/$EXP_ID/run?max_samples=$MAX_SAMPLES" \
     -H "Authorization: Bearer $TOKEN")
 echo "$RUN_RES" | print_json
 

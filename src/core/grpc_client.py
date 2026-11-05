@@ -79,7 +79,7 @@ class GrpcComputeClient:
             async with grpc.aio.insecure_channel(self.target) as channel:
                 stub = benchmark_pb2_grpc.BenchmarkComputeServiceStub(channel)
                 # Таймаут на время выполнения вычислений
-                resp = await stub.ExecuteBenchmark(req, timeout=120.0)
+                resp = await stub.ExecuteBenchmark(req, timeout=600.0)
                 return resp
         except grpc.RpcError as e:
             raise AppException(
